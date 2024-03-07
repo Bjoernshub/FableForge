@@ -27,7 +27,10 @@ function LoginScreen({ navigation }) {
         value={password}
         onChangeText={setPassword}
       />
-      <Button title="Login" onPress={handleLogin} />
+      <Button 
+        title="Login" 
+        // this needs to be adjusted later when login-logic will come. 
+        onPress={() => navigation.navigate('Main') } />
       <Button
         title="Don't have an account? Register"
         onPress={() => navigation.navigate('Register')}
