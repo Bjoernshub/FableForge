@@ -1,11 +1,12 @@
 // CreateAStoryScreen.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View, Text, Button, StyleSheet, ScrollView,
     Modal, TouchableOpacity, ActivityIndicator
 } from 'react-native';
 import axios from 'axios';
 import config from '../config'; // make sure this path is correct
+import { useStories } from '../context/StoriesContext';
 
 function CreateAStoryScreen() {
     const [isModalVisible, setIsModalVisible] = useState(false);
@@ -13,10 +14,22 @@ function CreateAStoryScreen() {
     const [choices, setChoices] = useState({
         type: '',
         genre: '',
-        mainActor: ''
+        mainActor: '',
+        bedtimeOrAction: ''
     });
     const [story, setStory] = useState('');
     const [loading, setLoading] = useState(false);
+    const [title, setTitle] = useState('');
+
+
+    useEffect(() => {
+        openModal(); // Automatically open the modal when the screen is loaded
+    }, []);
+
+    useEffect(() => {
+        console.log('Choices state updated:', choices);
+    }, [choices]);
+
 
     const steps = [
         {
@@ -33,8 +46,13 @@ function CreateAStoryScreen() {
             question: "Who is the main actor?",
             options: ["Dragon", "Bear", "Lion", "Knight"],
             choiceKey: "mainActor"
+        },
+        {
+            question: "Bedtime or action story?",
+            options: ["Bedtime", "Action"],
+            choiceKey: "bedtimeOrAction"
         }
-        // ... you can add more steps as needed
+        // ... more steps will come. 
     ];
 
     const resetStoryCreation = () => {
@@ -44,7 +62,8 @@ function CreateAStoryScreen() {
         setChoices({
             type: '',
             genre: '',
-            mainActor: ''
+            mainActor: '',
+            bedtimeOrAction: '',
         });
     };
 
@@ -54,11 +73,10 @@ function CreateAStoryScreen() {
     };
 
     const selectOption = (option, choiceKey) => {
-        setChoices({ ...choices, [choiceKey]: option });
+        console.log('Selected option:', option, 'for choiceKey:', choiceKey);
+        setChoices(prevChoices => ({ ...prevChoices, [choiceKey]: option }));
         if (currentStep < steps.length - 1) {
             setCurrentStep(currentStep + 1);
-        } else {
-            generateStory();
         }
     };
 
@@ -72,11 +90,24 @@ function CreateAStoryScreen() {
         setIsModalVisible(false);
     };
 
+    const allChoicesMade = Object.values(choices).every(choice => choice !== '');
+
+
+    const { addStory } = useStories();
+
     const generateStory = async () => {
-        if (choices.type && choices.genre && choices.mainActor) {
-            const prompt = `Create a ${choices.type} bedtime story for children with the main actor being a ${choices.mainActor} in a ${choices.genre} setting. Please add also smileys to have it visual beautiful for the child.`;
-            console.log('API Key:', config.OPENAI_API_KEY);
-            setLoading(true);
+        console.log(choices);
+        const { type, genre, mainActor, bedtimeOrAction } = choices;
+        if (!allChoicesMade) {
+            alert('Please complete all the steps.');
+            return;
+        }
+
+        const prompt = `Create a ${choices.type} ${choices.bedtimeOrAction} story for children with the main actor being a ${choices.mainActor} in a ${choices.genre} setting. Please add also smileys to have it visual beautiful for the child.
+        Please start the Story with a title.`;
+        console.debug('API Key:', config.OPENAI_API_KEY);
+        console.log('Create a ${choices.type} ${bedtimeOrAction} story for children with the main actor being a ${choices.mainActor} in a ${choices.genre} setting.')
+        setLoading(true);
 
             try {
                 const response = await axios.post('https://api.openai.com/v1/chat/completions', {
@@ -89,7 +120,18 @@ function CreateAStoryScreen() {
                     }
                 });
 
-                setStory(response.data.choices[0].message.content);
+                // Assume the title ends with the first newline character
+                const storyResponse = response.data.choices[0].message.content;
+                const titleEndIndex = storyResponse.indexOf('\n');
+                const storyTitle = storyResponse.substring(0, titleEndIndex).trim();
+                const storyWithoutTitle = storyResponse.substring(titleEndIndex + 1).trim();
+
+                //setStory(response.data.choices[0].message.content);
+                setTitle(storyTitle);
+                setStory(storyWithoutTitle);
+
+                addStory({ title: storyTitle, content: storyWithoutTitle });
+
                 closeModal();
             } catch (error) {
                 const errorMessage = error.response ? JSON.stringify(error.response.data) : error.message;
@@ -98,17 +140,11 @@ function CreateAStoryScreen() {
             } finally {
                 setLoading(false);
             }
-        } else {
-            alert("Please complete all the steps.");
-        }
     };
+
 
     return (
         <View style={styles.container}>
-            <TouchableOpacity onPress={openModal}>
-                <Text style={styles.addButtonText}>+</Text>
-            </TouchableOpacity>
-
             <Modal
                 animationType="slide"
                 transparent={true}
@@ -130,12 +166,27 @@ function CreateAStoryScreen() {
                                 <Button title="Previous" onPress={previousStep} />
                             )}
                             {currentStep === steps.length - 1 && (
-                                <Button title="Generate Story" onPress={generateStory} />
+                                <TouchableOpacity
+                                    onPress={generateStory}
+                                    disabled={!allChoicesMade}
+                                    style={{
+                                        backgroundColor: allChoicesMade ? '#0000ff' : '#aaa', // Color changes based on allChoicesMade
+                                        padding: 10,
+                                        borderRadius: 5,
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        opacity: allChoicesMade ? 1 : 0.5, // Make button look disabled if not all choices are made
+                                    }}>
+                                    <Text style={{ color: '#fff' }}>Generate Story</Text>
+                                </TouchableOpacity>
                             )}
                         </View>
                     </ScrollView>
                 </View>
             </Modal>
+
+            {/* Display the title as a header if it exists */}
+            {title && <Text style={styles.titleText}>{title}</Text>}
 
             {/* Use ScrollView to make the story scrollable */}
             <ScrollView style={styles.storyContainer}>
@@ -186,6 +237,11 @@ const styles = StyleSheet.create({
         marginVertical: 20,
         paddingHorizontal: 10,
         width: '100%',
+    },
+    titleText: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginTop: 20,
     },
     storyText: {
         backgroundColor: '#f0f0f0',

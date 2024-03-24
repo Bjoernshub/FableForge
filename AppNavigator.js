@@ -5,6 +5,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
+import { StoriesProvider } from './context/StoriesContext';
+
 // Import screens
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
@@ -62,16 +64,18 @@ function MyTabs() {
 // App Navigator that includes both Stack and Tab navigation
 function AppNavigator() {
   return (
-    <NavigationContainer>
-      <Stack.Navigator>
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="Register" component={RegisterScreen} />
-        <Stack.Screen name="MyStories" component={MyStoriesScreen} />
-        <Stack.Screen name="Profile" component={ProfileScreen} />
-        <Stack.Screen name="CreateAStory" component={CreateAStoryScreen} />
-        <Stack.Screen name="Main" component={MyTabs} options={{ headerShown: false }} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <StoriesProvider>
+      <NavigationContainer>
+        <Stack.Navigator>
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen name="MyStories" component={MyStoriesScreen} />
+          <Stack.Screen name="Profile" component={ProfileScreen} />
+          <Stack.Screen name="CreateAStory" component={CreateAStoryScreen} />
+          <Stack.Screen name="Main" component={MyTabs} options={{ headerShown: false }} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </StoriesProvider>
   );
 }
 
